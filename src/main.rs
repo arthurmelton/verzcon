@@ -148,7 +148,9 @@ fn main() {
                     }
                     let returns = dst.iter().map(|&c| c as char).collect::<String>();
                     let mut ar = Archive::new(returns.as_bytes());
-                    ar.unpack(PathBuf::from(json["Folder"].to_string().trim_matches('\"').to_string()).pop().to_string()).unwrap();
+                    let mut loc = PathBuf::from(json["Folder"].to_string().trim_matches('\"').to_string());
+                    loc.pop();
+                    ar.unpack(loc).unwrap();
                 }
             }
         }
