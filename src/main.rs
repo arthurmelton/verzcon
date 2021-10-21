@@ -1,12 +1,10 @@
-use std::{env, fs, thread, process};
+use std::{env, fs, process};
 use std::fs::File;
 use clap::{Arg, App};
 use std::io::{Write, Read};
 use std::net::TcpListener;
 use serde_json::Value;
-use std::path::PathBuf;
 use tar::{Builder, Archive};
-use std::str;
 use curl::easy::Easy;
 
 fn main() {
@@ -54,9 +52,10 @@ fn main() {
                 }
                 data = (&data[..length]).to_string();
                 if data.to_string() == "version" {
-                    let mut ar = Builder::new(Vec::new());
+                    let file = File::create(json["Temp File"].to_string().trim_matches('\"').to_string()).unwrap();
+                    let mut ar = Builder::new(file);
                     ar.append_dir_all("cont", json["Folder"].to_string().trim_matches('\"').to_string()).unwrap();
-                    let contents = format!("{:?}", md5::compute(String::from_utf8_lossy(&*ar.into_inner().unwrap()).to_string()));
+                    let contents = format!("{:?}", md5::compute(fs::read_to_string(json["Temp File"].to_string().trim_matches('\"').to_string()).expect("Something went wrong reading the file")));
                     let response = format!(
                         "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
                         contents.len(),
@@ -65,10 +64,10 @@ fn main() {
                     stream.write(response.as_bytes()).unwrap();
                 }
                 else if data.to_string() == "cont" {
-                    let mut ar = Builder::new(Vec::new());
+                    let file = File::create(json["Temp File"].to_string().trim_matches('\"').to_string()).unwrap();
+                    let mut ar = Builder::new(file);
                     ar.append_dir_all("cont", json["Folder"].to_string().trim_matches('\"').to_string()).unwrap();
-                    let contents = &*ar.into_inner().unwrap();
-                    let contents = String::from_utf8_lossy(contents).to_string();
+                    let contents = fs::read_to_string(json["Temp File"].to_string().trim_matches('\"').to_string()).expect("Something went wrong reading the file");
                     let response = format!(
                         "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
                         contents.len(),
@@ -111,9 +110,10 @@ fn main() {
                 process::exit( 520);
             }
             let returns = dst.iter().map(|&c| c as char).collect::<String>();
-            let mut ar = Builder::new(Vec::new());
+            let file = File::create(json["Temp File"].to_string().trim_matches('\"').to_string()).unwrap();
+            let mut ar = Builder::new(file);
             ar.append_dir_all("cont", json["Folder"].to_string().trim_matches('\"').to_string()).unwrap();
-            if returns == format!("{:?}", md5::compute(String::from_utf8_lossy(&*ar.into_inner().unwrap()).to_string())) {
+            if returns == format!("{:?}", md5::compute(fs::read_to_string(json["Temp File"].to_string().trim_matches('\"').to_string()).expect("Something went wrong reading the file"))) {
                 println!("up to date");
             }
             else {
@@ -123,7 +123,7 @@ fn main() {
                     let mut easy = Easy::new();
                     let mut data = "cont".as_bytes();
                     easy.url(&[json["Ip"].to_string().trim_matches('\"').to_string(), ":1754".to_string()].join("")).unwrap();
-                    easy.custom_request("POST");
+                    easy.post(true).unwrap();
                     easy.post_field_size(data.len() as u64).unwrap();
                     let mut transfer = easy.transfer();
                     transfer
@@ -146,8 +146,8 @@ fn main() {
                         println!("A error happened try again");
                         process::exit( 520);
                     }
-                    let returns = dst.iter().map(|&c| c as char).collect::<String>();
-                    let mut ar = Archive::new(returns.as_bytes());
+                    create_file(json["Temp File"].to_string().trim_matches('\"').to_string(), dst.iter().map(|&c| c as char).collect::<String>());
+                    let mut ar = Archive::new(File::open(json["Temp File"].to_string().trim_matches('\"').to_string()).unwrap());
                     ar.unpack(json["Folder"].to_string().trim_matches('\"').to_string()).unwrap();
                 }
             }
@@ -155,10 +155,10 @@ fn main() {
     }
     else {
         if matches.is_present("host") {
-            create_file(dir.display().to_string(), "{\n\t\"Folder\":\"path ex. c:\\bob or /home/bob/billy\"\n}".to_string());
+            create_file(dir.display().to_string(), "{\n\t\"Folder\":\"path ex. c:\\bob or /home/bob/billy\",\n\t\"Temp File\": \"the temp file location\"\n}".to_string());
         }
         else {
-            create_file(dir.display().to_string(), "{\n\t\"Ip\": \"the ip ex 127.0.0.1 or 139.130.4.5\",\n\t\"Folder\": \"path ex. c:\\bob or /home/bob/billy\"\n}".to_string());
+            create_file(dir.display().to_string(), "{\n\t\"Ip\": \"the ip ex 127.0.0.1 or 139.130.4.5\",\n\t\"Folder\": \"path ex. c:\\bob or /home/bob/billy\",\n\t\"Temp File\": \"the temp file location\"\n}".to_string());
         }
         println!("In {} is your config file that you need to edit, please do so", dir.display().to_string());
     }
