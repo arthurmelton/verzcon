@@ -55,7 +55,7 @@ fn main() {
                 data = (&data[..length]).to_string();
                 if data.to_string() == "version" {
                     let mut ar = Builder::new(Vec::new());
-                    ar.append_dir_all("cont", json["Folder"].to_string().trim_matches('\"').to_string()).unwrap();
+                    ar.append_dir_all(PathBuf::from(json["Folder"].to_string().trim_matches('\"').to_string()).file_name().unwrap(), json["Folder"].to_string().trim_matches('\"').to_string()).unwrap();
                     let contents = format!("{:?}", md5::compute(String::from_utf8_lossy(&*ar.into_inner().unwrap()).to_string()));
                     let response = format!(
                         "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
@@ -66,7 +66,7 @@ fn main() {
                 }
                 else if data.to_string() == "cont" {
                     let mut ar = Builder::new(Vec::new());
-                    ar.append_dir_all("cont", json["Folder"].to_string().trim_matches('\"').to_string()).unwrap();
+                    ar.append_dir_all(PathBuf::from(json["Folder"].to_string().trim_matches('\"').to_string()).file_name().unwrap(), json["Folder"].to_string().trim_matches('\"').to_string()).unwrap();
                     let contents = &*ar.into_inner().unwrap();
                     let contents = String::from_utf8_lossy(contents).to_string();
                     let response = format!(
@@ -112,7 +112,7 @@ fn main() {
             }
             let returns = dst.iter().map(|&c| c as char).collect::<String>();
             let mut ar = Builder::new(Vec::new());
-            ar.append_dir_all("cont", json["Folder"].to_string().trim_matches('\"').to_string()).unwrap();
+            ar.append_dir_all(PathBuf::from(json["Folder"].to_string().trim_matches('\"').to_string()).file_name().unwrap(), json["Folder"].to_string().trim_matches('\"').to_string()).unwrap();
             if returns == format!("{:?}", md5::compute(String::from_utf8_lossy(&*ar.into_inner().unwrap()).to_string())) {
                 println!("up to date");
             }
@@ -148,7 +148,7 @@ fn main() {
                     }
                     let returns = dst.iter().map(|&c| c as char).collect::<String>();
                     let mut ar = Archive::new(returns.as_bytes());
-                    ar.unpack(json["Folder"].to_string().trim_matches('\"').to_string()).unwrap();
+                    ar.unpack(PathBuf::from(json["Folder"].to_string().trim_matches('\"').to_string()).pop().to_string()).unwrap();
                 }
             }
         }
